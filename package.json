@@ -6,7 +6,15 @@
   "author": "McKittrick Kaminski <mckittrick.kaminski@gmail.com>",
   "license": "MIT",
   "dependencies": {
+    "dotenv": "^16.0.3",
+    "ipfs": "^0.66.0",
+    "ipfs-core": "^0.18.0",
+    "ipfs-http-client": "^60.0.0",
     "typescript": "*"
+  },
+  "type": "module",
+  "scripts": {
+    "ts": "node --loader ts-node/esm --experimental-specifier-resolution node"
   },
   "devDependencies": {
     "@types/node": "^18.14.1",
