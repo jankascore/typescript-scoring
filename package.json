@@ -8,9 +8,6 @@
   "dependencies": {
     "dotenv": "^16.0.3",
     "ethers": "^6.0.8",
-    "ipfs": "^0.66.0",
-    "ipfs-core": "^0.18.0",
-    "ipfs-http-client": "^60.0.0",
     "typescript": "*"
   },
   "type": "module",
