@@ -10,12 +10,12 @@ export interface MigrationParams {
 }
 
 export const migrationParams: MigrationParams = {
-	c0: 0.2,
-	xi0: 1,
-	c1: 0.73,
-	xi1: 206.49,
-	c2: 5,
-	xi2: 300,
-	c3: 0.38,
-	xi3: 280.45,
+    c0: 2.60599986,
+    xi0: 69.4213835,
+    c1: 4.094462218,
+    xi1: 181.65380369,
+    c2: 0.43581895,
+    xi2: 198.9690205,
+    c3: 0.43875818,
+    xi3: 32.8103525
 }
