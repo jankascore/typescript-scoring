@@ -1,8 +1,9 @@
 import {ethers} from 'ethers';
-import fs from 'fs';
-import path from 'path';
-import * as url from 'url';
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
+import Obligor from './obligor';
+import { migrationParams } from './migration';
+import {query} from './queries/aave_v3'
+import ky from 'ky';
+
 
 interface QueryReturn {
 	data: {
@@ -28,16 +29,17 @@ interface DebtAction {
 	amount: number;
 	timestamp: number;
 	logIndex: number;
+	symbol: string
 }
 
 const getData = async () => {
-	const resp = await fetch("https://api.thegraph.com/subgraphs/name/messari/aave-v3-ethereum", {
+	const resp = await ky.post("https://api.thegraph.com/subgraphs/name/messari/aave-v3-ethereum", {
 		body: JSON.stringify({
-			query: fs.readFileSync(path.resolve(__dirname, 'queries', 'aave_v3.graphql' )).toString(),
+			query,
 			operationName: 'Aave'
 		}),
 		method: "POST"
-	}).then(r => r.json()) as QueryReturn
+	}).json<QueryReturn>();
 
 	return resp;
 }
@@ -51,6 +53,7 @@ const formatItem = (queryItem: QueryItem, type: DebtAction['type']): DebtAction 
 		amount: formatNumber(queryItem.amount, queryItem.asset.decimals),
 		timestamp: Number(queryItem.timestamp),
 		logIndex: queryItem.logIndex,
+		symbol: queryItem.asset.symbol,
 		type
 	}
 }
@@ -78,10 +81,38 @@ const prepareData = async () => {
 	const d = await getData();
 	const actions = formatItems(d);
 
-	// fs.writeFileSync('test.json', JSON.stringify(actions, undefined, 2))
-
-	console.log(actions.slice(0, 20));
+	return actions;
 }
 
+const getProtocolName = (action: DebtAction): string => {
+	return 'eth_' + action.symbol;
+}
 
-prepareData();
+const calculateScore = async () => {
+	const actions = await prepareData()
+	const ob = new Obligor(10, 10, migrationParams)
+
+	actions.forEach(action => {
+		switch (action.type) {
+			case 'borrow':
+				ob.addBorrow(action.amount, 0, 0, getProtocolName(action))
+				break
+			case 'deposit':
+				ob.addCollateral(action.amount, 1, getProtocolName(action), 0)
+				break
+			case 'liquidation':
+				ob.addLiquidation(action.amount, 0, getProtocolName(action), 0);
+				break
+			case 'repay':
+				ob.addRepay(action.amount, 0, getProtocolName(action), 0)
+				break
+			case 'withdraw':
+				ob.withdrawCollateral(action.amount, getProtocolName(action), 0)
+				break
+		}
+	})
+
+	return [ob.getScore(), ob.getConfInterval()];
+}
+
+export {calculateScore}

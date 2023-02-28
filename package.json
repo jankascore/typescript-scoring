@@ -8,11 +8,15 @@
   "dependencies": {
     "dotenv": "^16.0.3",
     "ethers": "^6.0.8",
+    "ky": "^0.33.2",
     "typescript": "*"
   },
   "type": "module",
   "scripts": {
-    "ts": "node --loader ts-node/esm --experimental-specifier-resolution node"
+    "ts": "node --loader ts-node/esm --experimental-specifier-resolution node",
+    "test": "yarn ts src/tools/graph.ts",
+    "deploy": "yarn ts scripts/deploy.ts",
+    "build": "node --loader ts-node/esm node_modules/.bin/webpack-cli -c webpack.config.ts"
   },
   "devDependencies": {
     "@types/node": "^18.14.1",
@@ -23,6 +27,7 @@
     "eslint-plugin-import": "^2.25.2",
     "eslint-plugin-n": "^15.0.0",
     "eslint-plugin-promise": "^6.0.0",
+    "ipfs-http-client": "^60.0.0",
     "serve": "^14.2.0",
     "terser-webpack-plugin": "^5.3.6",
     "ts-loader": "^9.4.2",

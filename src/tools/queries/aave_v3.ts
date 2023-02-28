@@ -1,4 +1,4 @@
-query Aave {
+export const query = `query Aave {
 	account(id : "0x9600a48ed0f931d0c422d574e3275a90d8b22745") {
     repays {
       amount
@@ -46,4 +46,4 @@ query Aave {
       }
     }
   }
-}
+}`
