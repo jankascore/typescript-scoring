@@ -200,4 +200,22 @@ export class Obligor {
 
 		loan.collaterAmt = Math.max(0, loan.collaterAmt - withdrawAmt)
 	}
+
+	addCollateral(
+		addAmt: number,
+		price: number,
+		protocolName: string,
+		loanNum: number,
+	) {
+		const loan = this._fetchLoan(protocolName, loanNum)
+		if (!loan) throw new Error("Loan not found!");
+
+		const original_collat = loan.collaterAmt
+		const new_collat_amt = loan.collaterAmt + addAmt
+
+		if ((new_collat_amt - original_collat)*price > 0.5*loan.outstandingAmount) {
+			this._inc_repay
+		}
+		loan.collaterAmt = new_collat_amt
+	}
 }
