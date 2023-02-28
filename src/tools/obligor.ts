@@ -95,6 +95,10 @@ export class Obligor {
 		this._inc_origination();
 	}
 
+	_computeScore(proba : number) {
+		return Math.round(100*proba)
+	}
+
 	_getLoanId(protocolName: string, loanNum: number) {
 		return `loan_${protocolName}_${loanNum}`
 	}
@@ -217,5 +221,31 @@ export class Obligor {
 			this._inc_repay
 		}
 		loan.collaterAmt = new_collat_amt
+	}
+	get proba() {
+		return this.alpha / (this.alpha + this.beta)
+	}
+	get variance() {
+		return (this.alpha*this.beta) / (Math.pow(this.alpha + this.beta, 2)*(this.alpha+this.beta+1))
+	}
+
+ 	getScore() {
+		return this._computeScore(this.proba)
+	}
+
+	getConfInterval(z : number = 2) {
+		// get variance
+		const stdev = Math.sqrt(this.variance)
+
+		// get bounds
+		const lowerBound = Math.max(this.proba - z * stdev,0)
+		const upperBound = Math.min(this.proba + z * stdev,1)
+
+		// get score
+		const lowerScore = this._computeScore(lowerBound)
+		const upperScore = this._computeScore(upperBound)
+
+		// return 'list' (lower, upper)
+		return [lowerScore, upperScore] as const
 	}
 }
