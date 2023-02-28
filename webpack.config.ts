@@ -6,7 +6,7 @@ const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
 
 const config: webpack.Configuration = {
 	mode: 'production',
-	entry: './src/tools/graph.ts',
+	entry: './src/index.ts',
 	output: {
 		path: path.resolve(__dirname, 'dist'),
 		filename: 'calc.txt',

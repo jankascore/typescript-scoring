@@ -14,7 +14,7 @@
   "type": "module",
   "scripts": {
     "ts": "node --loader ts-node/esm --experimental-specifier-resolution node",
-    "test": "yarn ts src/tools/graph.ts",
+    "test": "yarn ts src/test.ts",
     "deploy": "yarn ts scripts/deploy.ts",
     "build": "node --loader ts-node/esm node_modules/.bin/webpack-cli -c webpack.config.ts"
   },

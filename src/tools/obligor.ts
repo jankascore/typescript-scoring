@@ -49,7 +49,7 @@ class Obligor {
 	}
 
 	get _stickiness() {
-		return Math.max(1, this.c3 * log(1 + this.xi3 / this._sum_ab))
+		return Math.min(1, this.c3 * log(1 + this.xi3 / this._sum_ab))
 	}
 
 	_inc_origination() {

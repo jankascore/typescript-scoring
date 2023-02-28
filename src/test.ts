@@ -1,3 +1,3 @@
 import { calculateScore } from "./tools/graph";
 
-export {calculateScore}
+calculateScore().then(console.log);
