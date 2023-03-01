@@ -1,11 +1,12 @@
 import {ethers} from 'ethers';
-import fs from 'fs';
-import path from 'path';
-import * as url from 'url';
-const __dirname = url.fileURLToPath(new URL('.', import.meta.url));
+import Obligor from './obligor';
+import { migrationParams } from './migration';
+import {generateQuery} from './queries/aave_v3'
+import ky from 'ky';
+
 
 interface QueryReturn {
-	data: {
+	data?: {
 		account: {
 			repays: QueryItem[]
 			borrows: QueryItem[]
@@ -19,6 +20,7 @@ interface QueryReturn {
 interface QueryItem {
 	amount: string;
 	timestamp: string;
+	amountUSD: string;
 	logIndex: number;
 	asset: {symbol: string, decimals: number}
 }
@@ -26,18 +28,20 @@ interface QueryItem {
 interface DebtAction {
 	type: 'borrow' | 'repay' | 'liquidation' | 'deposit' | 'withdraw'
 	amount: number;
+	amountUSD: number;
 	timestamp: number;
 	logIndex: number;
+	symbol: string
 }
 
-const getData = async () => {
-	const resp = await fetch("https://api.thegraph.com/subgraphs/name/messari/aave-v3-ethereum", {
+const getData = async (address: string, timestamp: number) => {
+	const resp = await ky.post("https://api.thegraph.com/subgraphs/name/messari/aave-v3-ethereum", {
 		body: JSON.stringify({
-			query: fs.readFileSync(path.resolve(__dirname, 'queries', 'aave_v3.graphql' )).toString(),
+			query: generateQuery(address, timestamp),
 			operationName: 'Aave'
 		}),
 		method: "POST"
-	}).then(r => r.json()) as QueryReturn
+	}).json<QueryReturn>();
 
 	return resp;
 }
@@ -49,14 +53,18 @@ const formatNumber = (amount: string, decimals: number): number => {
 const formatItem = (queryItem: QueryItem, type: DebtAction['type']): DebtAction => {
 	return {
 		amount: formatNumber(queryItem.amount, queryItem.asset.decimals),
+		amountUSD: Number(queryItem.amountUSD),
 		timestamp: Number(queryItem.timestamp),
 		logIndex: queryItem.logIndex,
+		symbol: queryItem.asset.symbol,
 		type
 	}
 }
 
 const formatItems = (query: QueryReturn): DebtAction[] => {
-	const {repays, borrows, liquidations, deposits, withdraws} = query.data.account;
+	if (!query.data || !query.data.account) return []
+
+	const {repays, borrows, liquidations, deposits, withdraws} = query.data.account
 	const newRepays: DebtAction[] = repays.map(r => formatItem(r, 'repay'))
 	const newBorrows: DebtAction[] = borrows.map(r => formatItem(r, 'borrow'))
 	const newLiqs: DebtAction[] = liquidations.map(r => formatItem(r, 'liquidation'))
@@ -74,14 +82,42 @@ const sortFunction = (a: DebtAction, b: DebtAction): number => {
 	}
 }
 
-const prepareData = async () => {
-	const d = await getData();
+export const prepareData = async (address: string, timestamp: number) => {
+	const d = await getData(address, timestamp);
 	const actions = formatItems(d);
 
-	// fs.writeFileSync('test.json', JSON.stringify(actions, undefined, 2))
-
-	console.log(actions.slice(0, 20));
+	return actions;
 }
 
+const getProtocolName = (action: DebtAction): string => {
+	return 'eth_' + action.symbol;
+}
 
-prepareData();
+const calculateScore = async (address: string, timestamp: number) => {
+	const actions = await prepareData(address, timestamp)
+	const ob = new Obligor(10, 10, migrationParams)
+
+	actions.forEach(action => {
+		switch (action.type) {
+			case 'borrow':
+				ob.addBorrow(action.amount, 0, 0, getProtocolName(action))
+				break
+			case 'deposit':
+				ob.addCollateral(action.amount, 1, getProtocolName(action), 0)
+				break
+			case 'liquidation':
+				ob.addLiquidation(action.amount, 0, getProtocolName(action), 0);
+				break
+			case 'repay':
+				ob.addRepay(action.amount, 0, getProtocolName(action), 0)
+				break
+			case 'withdraw':
+				ob.withdrawCollateral(action.amount, getProtocolName(action), 0)
+				break
+		}
+	})
+
+	return [ob.getScore(), ob.getConfInterval()] as const;
+}
+
+export {calculateScore}

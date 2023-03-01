@@ -11,7 +11,7 @@ interface LoanCount {
 
 const {log} = Math;
 
-export class Obligor {
+class Obligor {
 	c0: number
 	xi0: number
 	c1: number
@@ -99,6 +99,8 @@ export class Obligor {
 			this.outstandingLoans[loanId] = newLoan
 		}
 		this._inc_origination();
+
+		return loanNum
 	}
 
 	_computeScore(proba : number) {
@@ -186,7 +188,10 @@ export class Obligor {
 		loanNum: number
 	) {
 		const loan = this._fetchLoan(protocolName, loanNum)
-		if(!loan) throw new Error("Loan does not exist!");
+		if(!loan) {
+			console.log(`Liquidation for Loan ${protocolName} skipped. No prior loan found.`);
+			return;
+		}
 
 		const remCollat = loan.collaterAmt - amountLiquidated
 		const newOutstanding = loan.outstandingAmount - amountLiquidated
@@ -217,8 +222,11 @@ export class Obligor {
 		protocolName: string,
 		loanNum: number,
 	) {
-		const loan = this._fetchLoan(protocolName, loanNum)
-		if (!loan) throw new Error("Loan not found!");
+		let loan = this._fetchLoan(protocolName, loanNum)
+		if (!loan) {
+			const loanNum = this._addLoan(0, 0, addAmt, protocolName)
+			loan = this._fetchLoan(protocolName, loanNum)!
+		}
 
 		const original_collat = loan.collaterAmt
 		const new_collat_amt = loan.collaterAmt + addAmt
@@ -255,3 +263,5 @@ export class Obligor {
 		return [lowerScore, upperScore] as const
 	}
 }
+
+export default Obligor
