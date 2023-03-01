@@ -1,45 +1,57 @@
-export const query = `query Aave {
-	account(id : "0x9600a48ed0f931d0c422d574e3275a90d8b22745") {
-    repays {
+export const generateQuery = (address: string, timestamp: number) => {
+  let q = query.replaceAll('PARAM_ADDRESS', address);
+  q = q.replaceAll('PARAM_TIMESTAMP', timestamp.toString());
+  console.log(q);
+  return q
+}
+
+const query = `query Aave {
+  account(id : "PARAM_ADDRESS") {
+    repays(where: {timestamp_lt: "PARAM_TIMESTAMP"}) {
       amount
+      amountUSD
       timestamp
-			logIndex
+      logIndex
       asset {
         symbol
         decimals
       }
     }
-    borrows {
+    borrows(where: {timestamp_lt: "PARAM_TIMESTAMP"}) {
       amount
+      amountUSD
       timestamp
-			logIndex
+      logIndex
       asset {
         symbol
         decimals
       }
     }
-    liquidations {
+    liquidations(where: {timestamp_lt: "PARAM_TIMESTAMP"}) {
       amount
+      amountUSD
       timestamp
-			logIndex
+      logIndex
       asset {
         symbol
         decimals
       }
     }
-    deposits {
+    deposits(where: {timestamp_lt: "PARAM_TIMESTAMP"}) {
       amount
+      amountUSD
       timestamp
-			logIndex
+      logIndex
       asset {
         symbol
         decimals
       }
     }
-    withdraws {
+    withdraws(where: {timestamp_lt: "PARAM_TIMESTAMP"}) {
       amount
+      amountUSD
       timestamp
-			logIndex
+      logIndex
       asset {
         symbol
         decimals

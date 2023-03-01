@@ -1,12 +1,12 @@
 import {ethers} from 'ethers';
 import Obligor from './obligor';
 import { migrationParams } from './migration';
-import {query} from './queries/aave_v3'
+import {generateQuery} from './queries/aave_v3'
 import ky from 'ky';
 
 
 interface QueryReturn {
-	data: {
+	data?: {
 		account: {
 			repays: QueryItem[]
 			borrows: QueryItem[]
@@ -32,10 +32,10 @@ interface DebtAction {
 	symbol: string
 }
 
-const getData = async () => {
+const getData = async (address: string, timestamp: number) => {
 	const resp = await ky.post("https://api.thegraph.com/subgraphs/name/messari/aave-v3-ethereum", {
 		body: JSON.stringify({
-			query,
+			query: generateQuery(address, timestamp),
 			operationName: 'Aave'
 		}),
 		method: "POST"
@@ -59,7 +59,9 @@ const formatItem = (queryItem: QueryItem, type: DebtAction['type']): DebtAction 
 }
 
 const formatItems = (query: QueryReturn): DebtAction[] => {
-	const {repays, borrows, liquidations, deposits, withdraws} = query.data.account;
+	if (!query.data) return []
+
+	const {repays, borrows, liquidations, deposits, withdraws} = query.data.account
 	const newRepays: DebtAction[] = repays.map(r => formatItem(r, 'repay'))
 	const newBorrows: DebtAction[] = borrows.map(r => formatItem(r, 'borrow'))
 	const newLiqs: DebtAction[] = liquidations.map(r => formatItem(r, 'liquidation'))
@@ -77,8 +79,8 @@ const sortFunction = (a: DebtAction, b: DebtAction): number => {
 	}
 }
 
-const prepareData = async () => {
-	const d = await getData();
+export const prepareData = async (address: string, timestamp: number) => {
+	const d = await getData(address, timestamp);
 	const actions = formatItems(d);
 
 	return actions;
@@ -88,8 +90,8 @@ const getProtocolName = (action: DebtAction): string => {
 	return 'eth_' + action.symbol;
 }
 
-const calculateScore = async () => {
-	const actions = await prepareData()
+const calculateScore = async (address: string, timestamp: number) => {
+	const actions = await prepareData(address, timestamp)
 	const ob = new Obligor(10, 10, migrationParams)
 
 	actions.forEach(action => {
@@ -112,7 +114,7 @@ const calculateScore = async () => {
 		}
 	})
 
-	return [ob.getScore(), ob.getConfInterval()];
+	return [ob.getScore(), ob.getConfInterval()] as const;
 }
 
 export {calculateScore}
