@@ -18,8 +18,7 @@ export class Obligor {
 	xi1: number
 	c2: number
 	xi2: number
-	c3: number
-	xi3: number
+	cap: number
 
 	outstandingLoans: Loans;
 	settledLoans: Loans;
@@ -36,8 +35,7 @@ export class Obligor {
 		this.xi1 = migrationParams.xi1
 		this.c2 = migrationParams.c2
 		this.xi2 = migrationParams.xi2
-		this.c3 = migrationParams.c3
-		this.xi3 = migrationParams.xi3
+		this.cap = migrationParams.cap
 
 		this.outstandingLoans = {}
 		this.settledLoans = {}
@@ -48,20 +46,28 @@ export class Obligor {
 		return this.alpha + this.beta
 	}
 
-	get _stickiness() {
-		return Math.max(1, this.c3 * log(1 + this.xi3 / this._sum_ab))
+	_stickiness() {
+		// caps sum of a+b
+		const diff = this._sum_ab - this.cap
+		if (diff > 0) {
+			this.alpha = Math.max(this.alpha - 0.5*diff, 0)
+			this.beta = Math.max(this.beta - 0.5*diff, 0)
+		}
 	}
 
 	_inc_origination() {
-		this.beta = (this.beta + this.c0 * log(1 + this.xi0 / this._sum_ab)) * this._stickiness
+		this.beta = (this.beta + this.c0 * log(1 + this.xi0 / this._sum_ab))
+		this._stickiness()  // caps sum a + b
 	}
 
 	_inc_repay() {
-		this.alpha = (this.alpha + this.c1 * log(1 + this.xi1 / this._sum_ab)) * this._stickiness
+		this.alpha = (this.alpha + this.c1 * log(1 + this.xi1 / this._sum_ab))
+		this._stickiness()  // caps sum a + b
 	}
 
 	_inc_liquidation() {
-		this.beta = (this.beta + this.c2 * log(1 + this.xi2 / this._sum_ab)) * this._stickiness
+		this.beta = (this.beta + this.c2 * log(1 + this.xi2 / this._sum_ab))
+		this._stickiness()  // caps sum a + b
 	}
 
 	_addLoan(
