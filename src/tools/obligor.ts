@@ -52,6 +52,11 @@ class Obligor {
 		if (diff > 0) {
 			this.alpha = Math.max(this.alpha - 0.5*diff, 0)
 			this.beta = Math.max(this.beta - 0.5*diff, 0)
+
+			// if alpha or beta hit 0, could still exceed cap
+			// make sure alpha or beta doesn't exceed cap
+			this.alpha = Math.min(this.alpha, this.cap)
+			this.beta = Math.min(this.beta, this.cap)
 		}
 	}
 
