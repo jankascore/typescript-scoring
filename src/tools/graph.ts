@@ -20,6 +20,7 @@ interface QueryReturn {
 interface QueryItem {
 	amount: string;
 	timestamp: string;
+	amountUSD: string;
 	logIndex: number;
 	asset: {symbol: string, decimals: number}
 }
@@ -27,6 +28,7 @@ interface QueryItem {
 interface DebtAction {
 	type: 'borrow' | 'repay' | 'liquidation' | 'deposit' | 'withdraw'
 	amount: number;
+	amountUSD: number;
 	timestamp: number;
 	logIndex: number;
 	symbol: string
@@ -51,6 +53,7 @@ const formatNumber = (amount: string, decimals: number): number => {
 const formatItem = (queryItem: QueryItem, type: DebtAction['type']): DebtAction => {
 	return {
 		amount: formatNumber(queryItem.amount, queryItem.asset.decimals),
+		amountUSD: Number(queryItem.amountUSD),
 		timestamp: Number(queryItem.timestamp),
 		logIndex: queryItem.logIndex,
 		symbol: queryItem.asset.symbol,
@@ -59,7 +62,7 @@ const formatItem = (queryItem: QueryItem, type: DebtAction['type']): DebtAction 
 }
 
 const formatItems = (query: QueryReturn): DebtAction[] => {
-	if (!query.data) return []
+	if (!query.data || !query.data.account) return []
 
 	const {repays, borrows, liquidations, deposits, withdraws} = query.data.account
 	const newRepays: DebtAction[] = repays.map(r => formatItem(r, 'repay'))

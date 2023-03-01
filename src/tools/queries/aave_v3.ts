@@ -1,7 +1,6 @@
 export const generateQuery = (address: string, timestamp: number) => {
   let q = query.replaceAll('PARAM_ADDRESS', address);
   q = q.replaceAll('PARAM_TIMESTAMP', timestamp.toString());
-  console.log(q);
   return q
 }
 

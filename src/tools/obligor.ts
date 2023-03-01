@@ -182,7 +182,10 @@ class Obligor {
 		loanNum: number
 	) {
 		const loan = this._fetchLoan(protocolName, loanNum)
-		if(!loan) throw new Error("Loan does not exist!");
+		if(!loan) {
+			console.log(`Liquidation for Loan ${protocolName} skipped. No prior loan found.`);
+			return;
+		}
 
 		const remCollat = loan.collaterAmt - amountLiquidated
 		const newOutstanding = loan.outstandingAmount - amountLiquidated
