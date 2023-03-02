@@ -188,6 +188,7 @@ class Obligor {
 
 	addLiquidation(
 		amountLiquidated: number,
+		assetPrice: number,
 		repaymentTime: number,
 		protocolName: string,
 		loanNum: number
@@ -199,7 +200,7 @@ class Obligor {
 		}
 
 		const remCollat = loan.collaterAmt - amountLiquidated
-		const newOutstanding = loan.outstandingAmount - amountLiquidated
+		const newOutstanding = loan.outstandingAmount - amountLiquidated*assetPrice
 		loan.outstandingAmount = newOutstanding
 		loan.collaterAmt = remCollat
 
