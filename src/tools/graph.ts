@@ -93,6 +93,14 @@ const getProtocolName = (action: DebtAction): string => {
 	return 'eth_' + action.symbol;
 }
 
+const computePrice = (action: DebtAction): number => {
+	if (action.amount > 0) {
+		return action.amountUSD / action.amount
+	} else {
+		throw new Error("DebtAction.amount is 0, can't compute price!");
+	}
+}
+
 const calculateScore = async (address: string, timestamp: number) => {
 	const actions = await prepareData(address, timestamp)
 	const ob = new Obligor(10, 10, migrationParams)
@@ -103,10 +111,10 @@ const calculateScore = async (address: string, timestamp: number) => {
 				ob.addBorrow(action.amount, 0, 0, getProtocolName(action))
 				break
 			case 'deposit':
-				ob.addCollateral(action.amount, 1, getProtocolName(action), 0)
+				ob.addCollateral(action.amount, computePrice(action), getProtocolName(action), 0)
 				break
 			case 'liquidation':
-				ob.addLiquidation(action.amount, 0, getProtocolName(action), 0);
+				ob.addLiquidation(action.amount, computePrice(action), 0, getProtocolName(action), 0);
 				break
 			case 'repay':
 				ob.addRepay(action.amount, 0, getProtocolName(action), 0)
