@@ -2,7 +2,7 @@ import {create} from 'ipfs-http-client';
 import fs from 'fs';
 import {config} from 'dotenv';
 import {JankaProtocol} from '../../contracts/typechain-types/contracts/JankaProtocol'
-import jankaJson from '../../contracts/artifacts/contracts/JankaProtocol.sol/JankaProtocol.json' assert {type: 'json'}
+import jankaJson from '../../contracts/artifacts/contracts/JankaProtocol.sol/JankaProtocol.json' assert {type: "json"}
 import {Contract, ethers} from 'ethers';
 config();
 
