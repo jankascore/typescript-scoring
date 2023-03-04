@@ -77,32 +77,18 @@ class Obligor {
 
 	_addLoan(
 		amount: number,
-		tenor: number,
-		collateralAmt: number,
-		protocolName: string
+		borrowName: string,
+		protocolName: string,
+		loanNum: number = 0
 	) {
-		// Add loan to borrower's collection
-		const loanNum = this.loansPerProtocol[protocolName] || 0
-		this.loansPerProtocol[protocolName] = loanNum + 1;
+		//fetch loan, if protocol doesn't
+		//exist fetch function will store
+		//loan object for you then return
+		const loan = this._fetchLoan(protocolName, loanNum)
 
-		if (tenor > 0) {
-			const loanId = `loan_${protocolName}_${loanNum}`
-
-			this.outstandingLoans[loanId] = new Loan(
-				amount, tenor, collateralAmt, protocolName
-			)
-		} else {
-			const loanId = `loan_${protocolName}_${loanNum}`
-			const newLoan = this.outstandingLoans[loanId] || new Loan(
-				0, tenor, 0, protocolName
-			)
-
-			newLoan.amount += amount
-			newLoan.outstandingAmount += amount
-			newLoan.collaterAmt += collateralAmt
-
-			this.outstandingLoans[loanId] = newLoan
-		}
+		loan.addOutstandingAmount(amount, borrowName)
+		loan.status = "outstanding"
+		
 		this._inc_origination();
 
 		return loanNum
@@ -116,11 +102,17 @@ class Obligor {
 		return `loan_${protocolName}_${loanNum}`
 	}
 
-	_fetchLoan(protocolName: string, loanNum: number): Loan | undefined {
+	_fetchLoan(protocolName: string, loanNum: number): Loan {
 		const loanId = this._getLoanId(protocolName, loanNum);
+		if (!(Object.keys(this.outstandingLoans).includes(loanId))) {
+			// if doesn't exist creat empty loan obj
+			this.outstandingLoans[loanId] = new Loan(
+				[],[],[],[],protocolName)
+		}
 		return this.outstandingLoans[loanId]
 	}
 
+	// remove...
 	_popLoan(protocolName: string, loanNum: number) {
 		const loanId = this._getLoanId(protocolName, loanNum)
 		if (Object.keys(this.outstandingLoans).includes(loanId)) {
@@ -132,53 +124,40 @@ class Obligor {
 	}
 
 	_settleLoan(
-		repaymentTime: number,
 		protocolName: string,
 		loanNum: number
-	) {
-		const [loan, loanId] = this._popLoan(protocolName, loanNum)
+	): boolean {
+		let loan = this._fetchLoan(protocolName, loanNum)
 
 		if (!loan) return false;
 
-		if (loan.status === 'outstanding' && loan.tenor >= repaymentTime) {
-			loan.status = 'repaid'
-		} else if (loan.status === 'outstanding' && loan.tenor < repaymentTime) {
-			loan.status = 'defaulted'
+		if (loan.totalOutstandingAmount <= 0) {
+			loan.status = "repaid"
+			return true
 		} else {
-			return false;
+			loan.status = "outstanding"
+			return false
 		}
-
-		this.settledLoans[loanId] = loan;
 	}
 
-	addBorrow(amount: number, tenor: number, collateralAmt: number, protocolName: string) {
-		this._addLoan(amount, tenor, collateralAmt, protocolName)
+	addBorrow(amount: number, borrowName: string, protocolName: string): void {
+		this._addLoan(amount, borrowName, protocolName)
 	}
 
-	addRepay(amount: number, repaymentTime: number, protocolName: string, loanNum: number) {
+	addRepay(amount: number, borrow_name: string, protocolName: string, loanNum: number) {
 		const loan = this._fetchLoan(protocolName, loanNum)
 
-		if (!loan) return false
+		console.log(loan.status, borrow_name)
+		if (loan.status == 'outstanding') {
+			const origAmount = loan.outstandingAmounts[borrow_name]
+			const amountRemaining = loan.outstandingAmounts[borrow_name] - amount
+			loan.outstandingAmounts[borrow_name] = amountRemaining
 
-		if (loan.status === 'outstanding') {
-			const {outstandingAmount} = loan
-			const amountRemaining = outstandingAmount - amount
-			loan.outstandingAmount = amountRemaining
-
-			if (loan.tenor === 0) {
-				if (amountRemaining < 0.5 * loan.outstandingAmount) {
-					this._inc_repay();
-					loan.amount = amountRemaining
-				}
-
-				if (amountRemaining <= 0) {
-					this._settleLoan(repaymentTime, protocolName, loanNum)
-				}
-			} else {
-				if (amountRemaining <= 0) {
-					this._inc_repay()
-					this._settleLoan(repaymentTime, protocolName, loanNum)
-				}
+			if (amountRemaining < 0.5 * origAmount) {
+				this._inc_repay();
+			}
+			if (amountRemaining <= 0) {
+					this._settleLoan(protocolName, loanNum)
 			}
 
 			return true
@@ -188,60 +167,60 @@ class Obligor {
 
 	addLiquidation(
 		amountLiquidated: number,
-		assetPrice: number,
-		repaymentTime: number,
+		collatName: string,
 		protocolName: string,
 		loanNum: number
 	) {
-		const loan = this._fetchLoan(protocolName, loanNum)
-		if(!loan) {
-			console.log(`Liquidation for Loan ${protocolName} skipped. No prior loan found.`);
+		let loan = this._fetchLoan(protocolName, loanNum)
+		
+		if(protocolName.includes('aave')) {
+
+			for (var key in loan.collateralAmounts) {
+
+				if(key.includes(collatName)) {
+					loan.collateralAmounts[key] -= amountLiquidated;
+					this._inc_liquidation()
+					return;
+				}
+				
+			}
+		} else {
+			// note, we need price of collat relative
+			// to borrow asset(s) to adjust fully
+			loan.collateralAmounts[collatName] -= amountLiquidated
+			this._inc_liquidation()
 			return;
 		}
 
-		const remCollat = loan.collaterAmt - amountLiquidated
-		const newOutstanding = loan.outstandingAmount - amountLiquidated*assetPrice
-		loan.outstandingAmount = newOutstanding
-		loan.collaterAmt = remCollat
-
-		this._inc_liquidation()
-		
-		if (newOutstanding <= 0) {
-			this._settleLoan(repaymentTime, protocolName, loanNum)
-		}
 	}
 
 	withdrawCollateral(
 		withdrawAmt: number,
+		collatName: string,
 		protocolName: string,
 		loanNum: number
 	) {
 		const loan = this._fetchLoan(protocolName, loanNum)
 		if (!loan) throw new Error("Loan not found!");
 
-		loan.collaterAmt = Math.max(0, loan.collaterAmt - withdrawAmt)
+		loan.collateralAmounts[collatName] = Math.max(0, loan.collateralAmounts[collatName] - withdrawAmt)
 	}
 
 	addCollateral(
 		addAmt: number,
-		price: number,
+		collatName: string,
 		protocolName: string,
 		loanNum: number,
 	) {
-		let loan = this._fetchLoan(protocolName, loanNum)
-		if (!loan) {
-			const loanNum = this._addLoan(0, 0, addAmt, protocolName)
-			loan = this._fetchLoan(protocolName, loanNum)!
-		}
+		const loan = this._fetchLoan(protocolName, loanNum)
+		const origCollatAmt = loan.getCollatAmt(collatName)
+		loan.addCollateralAmount(addAmt, collatName)
 
-		const original_collat = loan.collaterAmt
-		const new_collat_amt = loan.collaterAmt + addAmt
-
-		if ((new_collat_amt - original_collat)*price > 0.5*loan.outstandingAmount) {
-			this._inc_repay
+		if ((addAmt > 0.5*origCollatAmt) && (loan.totalOutstandingAmount > 0)) {
+			this._inc_repay()
 		}
-		loan.collaterAmt = new_collat_amt
 	}
+
 	get proba() {
 		return this.alpha / (this.alpha + this.beta)
 	}
