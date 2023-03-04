@@ -8,7 +8,7 @@ import { calculateScore, prepareData } from '../src/tools/graph';
 // export const address = "0xe6c2ebad69b325be894f768972dc8f896994e6ce"
 
 // with liqs
-export const address = "0xbec69dfce4c1fa8b7843fee1ca85788d84a86b06"
+export const address = "0x2068d14ee50772dd6e89c6f64f32adad0cc936ef"
 
 const getData = async () => {
 	const timestamp = Math.floor(new Date().getTime()/1000);

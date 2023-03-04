@@ -4,6 +4,7 @@ import { migrationParams } from './migration';
 import {generateQuery} from './queries/aave_v3'
 import ky from 'ky';
 
+const UPPER_CASE_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 interface QueryReturn {
 	data?: {
@@ -89,40 +90,57 @@ export const prepareData = async (address: string, timestamp: number) => {
 	return actions;
 }
 
-const getProtocolName = (action: DebtAction): string => {
-	return 'eth_' + action.symbol;
+const getProtocolName = (): string => {
+	// this is harcoded to be aave_v3_eth
+	// as this is the only chain we cover for
+	// ETH Denver hackathon.
+	// This was don as we store a collection of collatera
+	//and borrows per protocol / chain. 
+	// In a future update, we need to have this as a field 
+	// or in the DebtAction
+	return 'aave_v3_eth'
 }
 
-const computePrice = (action: DebtAction): number => {
-	if (action.amount > 0) {
-		return action.amountUSD / action.amount
-	} else {
-		throw new Error("DebtAction.amount is 0, can't compute price!");
-	}
-}
-
-const calculateScore = async (address: string, timestamp: number) => {
+// Note, should find way to add protocol name as field in data
+// Needed later when we move to multiple chains/protocols
+const calculateScore = async (address: string, timestamp: number,) => {
 	const actions = await prepareData(address, timestamp)
 	const ob = new Obligor(10, 10, migrationParams)
 
+	let cnt = 0
 	actions.forEach(action => {
 		switch (action.type) {
 			case 'borrow':
-				ob.addBorrow(action.amount, 0, 0, getProtocolName(action))
+				ob.addBorrow(action.amount, action.symbol, getProtocolName())
 				break
 			case 'deposit':
-				ob.addCollateral(action.amount, computePrice(action), getProtocolName(action), 0)
+				ob.addCollateral(action.amount,action.symbol, getProtocolName(), 0)
 				break
 			case 'liquidation':
-				ob.addLiquidation(action.amount, computePrice(action), 0, getProtocolName(action), 0);
+				// note this logic is hard-coded around aave
+				// need to add protocol as field in data
+				// to make dynamic
+				let liqSymbol = action.symbol
+				if(action.symbol[0] == "a") {
+					let startix = 1
+					let endix = 2
+					while (endix < liqSymbol.length && !(UPPER_CASE_LETTERS.includes(liqSymbol.slice(endix-1, endix)))) {
+							endix +=1
+					}
+					liqSymbol = liqSymbol.slice(startix, endix)
+					liqSymbol = liqSymbol.toUpperCase()
+				}
+				ob.addLiquidation(action.amount, liqSymbol, getProtocolName(), 0);
 				break
 			case 'repay':
-				ob.addRepay(action.amount, 0, getProtocolName(action), 0)
+				ob.addRepay(action.amount, action.symbol, getProtocolName(), 0)
 				break
 			case 'withdraw':
-				ob.withdrawCollateral(action.amount, getProtocolName(action), 0)
+				ob.withdrawCollateral(action.amount,action.symbol,getProtocolName(), 0)
 				break
 		}
+		
+		cnt += 1
 	})
 
 	return [ob.getScore(), ob.getConfInterval()] as const;
